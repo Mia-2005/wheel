@@ -488,6 +488,7 @@
 
     let currentAngle = 0;
     let isSpinning = false;
+    let wheelAnimating = false;
     let countdownIntervalId = null;
 
     let userBalance = loadBalance();
@@ -755,7 +756,7 @@
     }
 
     function updateControls() {
-      updateFreeSpinButton();
+      updateFreeSpinButtonServerState();
       updatePaidSpinButton();
     }
 
@@ -1081,7 +1082,7 @@
      */
     function spin(targetSectorIndex) {
       return new Promise((resolve, reject) => {
-        if (isSpinning) {
+        if (wheelAnimating) {
           reject(
             new Error(
               "Колесо уже вращается."
@@ -1107,7 +1108,7 @@
           return;
         }
 
-        isSpinning = true;
+        wheelAnimating = true;
         updateControls();
         clearResult();
 
@@ -1169,7 +1170,7 @@
 
           drawWheel(currentAngle);
 
-          isSpinning = false;
+          wheelAnimating = false;
           updateControls();
 
           const prize =
@@ -1259,6 +1260,34 @@
 
     let serverCooldownSeconds = 0;
     let serverFreeSpinAvailable = true;
+    let serverTimerInterval = null;
+
+    function startServerCooldownTimer() {
+      if (serverTimerInterval !== null) {
+        clearInterval(serverTimerInterval);
+      }
+
+      if (serverCooldownSeconds <= 0) {
+        serverFreeSpinAvailable = true;
+        updateFreeSpinButtonServerState();
+        return;
+      }
+
+      updateFreeSpinButtonServerState();
+
+      serverTimerInterval = setInterval(() => {
+        if (serverCooldownSeconds > 0) {
+          serverCooldownSeconds -= 1;
+          updateFreeSpinButtonServerState();
+          return;
+        }
+
+        serverFreeSpinAvailable = true;
+        updateFreeSpinButtonServerState();
+        clearInterval(serverTimerInterval);
+        serverTimerInterval = null;
+      }, 1000);
+    }
 
     async function loadUserDataFromServer() {
       const initData = getTelegramInitData();
@@ -1279,7 +1308,7 @@
           serverFreeSpinAvailable = data.free_spin_available;
           serverCooldownSeconds = data.cooldown_seconds;
           updateBalanceDisplay();
-          updateFreeSpinButtonServerState();
+          startServerCooldownTimer();
         }
       } catch (err) {
         console.error("Ошибка связи с сервером бота:", err);
@@ -1348,10 +1377,10 @@
           const prize = await spin(data.sector_index);
           isSpinning = false;
           userBalance = data.new_balance;
-          serverFreeSpinAvailable = false;
-          serverCooldownSeconds = 86400;
+          serverFreeSpinAvailable = data.free_spin_available;
+          serverCooldownSeconds = data.cooldown_seconds;
           updateBalanceDisplay();
-          updateFreeSpinButtonServerState();
+          startServerCooldownTimer();
         } catch (error) {
           console.error(error);
           isSpinning = false;
@@ -1408,6 +1437,7 @@
           isSpinning = false;
           userBalance = data.new_balance;
           updateBalanceDisplay();
+          updateControls();
         } catch (error) {
           console.error(error);
           isSpinning = false;
