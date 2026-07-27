@@ -1403,6 +1403,11 @@
           "Прокрут завершен:",
           event.detail
         );
+        setTimeout(() => {
+          if (window.Telegram && window.Telegram.WebApp) {
+            window.Telegram.WebApp.close();
+          }
+        }, 1500);
       }
     );
 
