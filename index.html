@@ -1345,8 +1345,8 @@
             return;
           }
 
-          isSpinning = false;
           const prize = await spin(data.sector_index);
+          isSpinning = false;
           userBalance = data.new_balance;
           serverFreeSpinAvailable = false;
           serverCooldownSeconds = 86400;
@@ -1404,8 +1404,8 @@
             return;
           }
 
-          isSpinning = false;
           const prize = await spin(data.sector_index);
+          isSpinning = false;
           userBalance = data.new_balance;
           updateBalanceDisplay();
         } catch (error) {
