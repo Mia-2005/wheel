@@ -1237,22 +1237,69 @@
     */
 
     /**
-     * Демонстрационная функция.
-     *
-     * В реальном проекте вместо Math.random()
-     * необходимо отправить запрос Python-боту или API.
-     */
-    async function getTargetSectorFromServer(
-      spinType
-    ) {
-      console.log(
-        "Тип прокрута:",
-        spinType
-      );
+    /*
+    ============================================================
+    СВЯЗЬ С СЕРВЕРОМ БОТА PYTHON
+    ============================================================
+    */
 
-      return Math.floor(
-        Math.random() * sectorCount
-      );
+    function getTelegramInitData() {
+      if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initData) {
+        return window.Telegram.WebApp.initData;
+      }
+      const urlParams = new URLSearchParams(window.location.search);
+      return urlParams.get("initData") || "";
+    }
+
+    function getApiBaseUrl() {
+      const urlParams = new URLSearchParams(window.location.search);
+      return urlParams.get("api_url") || window.WHEEL_API_URL || "http://localhost:8080";
+    }
+
+    let serverCooldownSeconds = 0;
+    let serverFreeSpinAvailable = true;
+
+    async function loadUserDataFromServer() {
+      const initData = getTelegramInitData();
+      if (!initData) {
+        console.warn("initData не найден. Запустите через бота Telegram.");
+        return;
+      }
+      const baseUrl = getApiBaseUrl();
+      try {
+        const res = await fetch(`${baseUrl}/api/wheel/init`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ initData: initData })
+        });
+        const data = await res.json();
+        if (data.success) {
+          userBalance = data.balance;
+          serverFreeSpinAvailable = data.free_spin_available;
+          serverCooldownSeconds = data.cooldown_seconds;
+          updateBalanceDisplay();
+          updateFreeSpinButtonServerState();
+        }
+      } catch (err) {
+        console.error("Ошибка связи с сервером бота:", err);
+      }
+    }
+
+    function updateFreeSpinButtonServerState() {
+      if (isSpinning) {
+        freeSpinButton.disabled = true;
+        freeSpinButton.textContent = "Колесо крутится…";
+        return;
+      }
+
+      if (serverFreeSpinAvailable && serverCooldownSeconds <= 0) {
+        freeSpinButton.disabled = false;
+        freeSpinButton.textContent = "Бесплатный прокрут";
+        return;
+      }
+
+      freeSpinButton.disabled = true;
+      freeSpinButton.textContent = `Бесплатно через ${formatCountdown(serverCooldownSeconds * 1000)}`;
     }
 
     /*
@@ -1264,47 +1311,50 @@
     freeSpinButton.addEventListener(
       "click",
       async () => {
-        if (isSpinning) {
+        if (isSpinning) return;
+        const initData = getTelegramInitData();
+        const baseUrl = getApiBaseUrl();
+
+        if (!initData) {
+          showResult("Запустите через бота Telegram.", "error");
           return;
         }
 
-        const availability =
-          checkFreeSpinAvailability();
-
-        if (!availability.available) {
-          updateFreeSpinButton();
+        if (!serverFreeSpinAvailable || serverCooldownSeconds > 0) {
+          updateFreeSpinButtonServerState();
           return;
         }
 
-        /*
-          Время сохраняется сразу после подтверждения
-          доступности прокрута.
-
-          В реальном проекте timestamp должен фиксироваться
-          на сервере, чтобы пользователь не мог обойти
-          ограничение очисткой localStorage.
-        */
-        saveFreeSpinTimestamp(Date.now());
-        startFreeSpinCountdown();
+        isSpinning = true;
+        updateControls();
+        clearResult();
 
         try {
-          const targetSectorIndex =
-            await getTargetSectorFromServer(
-              "free"
-            );
+          const res = await fetch(`${baseUrl}/api/wheel/spin`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ initData: initData, spin_type: "free" })
+          });
+          const data = await res.json();
 
-          const prize = await spin(
-            targetSectorIndex
-          );
+          if (!data.success) {
+            isSpinning = false;
+            updateControls();
+            showResult(data.error || "Бесплатный прокрут недоступен.", "error");
+            return;
+          }
 
-          await addWinning(prize);
+          const prize = await spin(data.sector_index);
+          userBalance = data.new_balance;
+          serverFreeSpinAvailable = false;
+          serverCooldownSeconds = 86400;
+          updateBalanceDisplay();
+          updateFreeSpinButtonServerState();
         } catch (error) {
           console.error(error);
-
-          showResult(
-            "Не удалось запустить колесо.",
-            "error"
-          );
+          isSpinning = false;
+          updateControls();
+          showResult("Ошибка связи с сервером.", "error");
         }
       }
     );
@@ -1318,74 +1368,48 @@
     paidSpinButton.addEventListener(
       "click",
       async () => {
-        if (isSpinning) {
+        if (isSpinning) return;
+        const initData = getTelegramInitData();
+        const baseUrl = getApiBaseUrl();
+
+        if (!initData) {
+          showResult("Запустите через бота Telegram.", "error");
           return;
         }
 
-        if (
-          userBalance < PAID_SPIN_PRICE
-        ) {
-          showResult(
-            "Недостаточно звезд на балансе.",
-            "error"
-          );
-
+        if (userBalance < PAID_SPIN_PRICE) {
+          showResult("Недостаточно звезд на балансе.", "error");
           updatePaidSpinButton();
           return;
         }
 
-        /*
-          Сначала списываем стоимость прокрута.
-
-          В реальном проекте сервер должен одной операцией:
-          1. проверить баланс;
-          2. списать стоимость;
-          3. определить выигрыш;
-          4. вернуть результат.
-        */
-        const deducted =
-          await deductBalance(
-            PAID_SPIN_PRICE
-          );
-
-        if (!deducted) {
-          showResult(
-            "Не удалось списать звезды.",
-            "error"
-          );
-
-          return;
-        }
+        isSpinning = true;
+        updateControls();
+        clearResult();
 
         try {
-          const targetSectorIndex =
-            await getTargetSectorFromServer(
-              "paid"
-            );
+          const res = await fetch(`${baseUrl}/api/wheel/spin`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ initData: initData, spin_type: "paid" })
+          });
+          const data = await res.json();
 
-          const prize = await spin(
-            targetSectorIndex
-          );
+          if (!data.success) {
+            isSpinning = false;
+            updateControls();
+            showResult(data.error || "Ошибка платного прокрута.", "error");
+            return;
+          }
 
-          await addWinning(prize);
+          const prize = await spin(data.sector_index);
+          userBalance = data.new_balance;
+          updateBalanceDisplay();
         } catch (error) {
           console.error(error);
-
-          /*
-            Для демонстрации возвращаем стоимость
-            при технической ошибке.
-
-            На сервере возврат должен обрабатываться
-            отдельной защищенной транзакцией.
-          */
-          await addWinning(
-            PAID_SPIN_PRICE
-          );
-
-          showResult(
-            "Ошибка прокрута. Стоимость возвращена.",
-            "error"
-          );
+          isSpinning = false;
+          updateControls();
+          showResult("Ошибка связи с сервером.", "error");
         }
       }
     );
@@ -1466,8 +1490,7 @@
     );
 
     initializeTelegramWebApp();
-    updateBalanceDisplay();
-    startFreeSpinCountdown();
+    loadUserDataFromServer();
     drawWheel(currentAngle);
   </script>
 </body>
