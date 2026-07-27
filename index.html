@@ -1345,6 +1345,7 @@
             return;
           }
 
+          isSpinning = false;
           const prize = await spin(data.sector_index);
           userBalance = data.new_balance;
           serverFreeSpinAvailable = false;
@@ -1403,6 +1404,7 @@
             return;
           }
 
+          isSpinning = false;
           const prize = await spin(data.sector_index);
           userBalance = data.new_balance;
           updateBalanceDisplay();
