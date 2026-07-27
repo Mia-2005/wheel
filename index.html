@@ -1,0 +1,1469 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+  >
+
+  <title>Колесо Фортуны</title>
+
+  <style>
+    :root {
+      --background: #090a0f;
+      --card-background: rgba(255, 255, 255, 0.055);
+      --border-color: rgba(255, 255, 255, 0.09);
+      --text-primary: #ffffff;
+      --text-secondary: rgba(255, 255, 255, 0.68);
+      --yellow: #ffca28;
+      --orange: #ff9800;
+      --green: #18c37e;
+      --blue: #4b7bec;
+      --disabled: #50525c;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      min-height: 100%;
+      margin: 0;
+    }
+
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      padding: 18px;
+
+      font-family: Arial, Helvetica, sans-serif;
+      color: var(--text-primary);
+
+      background:
+        radial-gradient(
+          circle at top,
+          rgba(255, 184, 0, 0.16),
+          transparent 36%
+        ),
+        linear-gradient(145deg, #171921, var(--background));
+    }
+
+    button {
+      font-family: inherit;
+    }
+
+    .wheel-app {
+      width: min(100%, 480px);
+      padding: 24px 18px;
+
+      text-align: center;
+
+      background: var(--card-background);
+      border: 1px solid var(--border-color);
+      border-radius: 28px;
+
+      box-shadow:
+        0 24px 70px rgba(0, 0, 0, 0.46),
+        inset 0 1px 0 rgba(255, 255, 255, 0.06);
+
+      backdrop-filter: blur(14px);
+    }
+
+    h1 {
+      margin: 0 0 8px;
+
+      font-size: clamp(28px, 8vw, 38px);
+      line-height: 1.1;
+    }
+
+    .subtitle {
+      margin: 0 0 18px;
+
+      color: var(--text-secondary);
+      font-size: 16px;
+      line-height: 1.4;
+    }
+
+    .balance-card {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+
+      min-width: 220px;
+      margin-bottom: 22px;
+      padding: 12px 20px;
+
+      font-size: 18px;
+      font-weight: 800;
+
+      background:
+        linear-gradient(
+          135deg,
+          rgba(255, 209, 64, 0.18),
+          rgba(255, 152, 0, 0.12)
+        );
+
+      border: 1px solid rgba(255, 202, 40, 0.32);
+      border-radius: 16px;
+
+      box-shadow:
+        0 8px 24px rgba(0, 0, 0, 0.22),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    }
+
+    .balance-value {
+      color: #ffd54f;
+    }
+
+    .wheel-container {
+      position: relative;
+
+      width: min(100%, 420px);
+      aspect-ratio: 1 / 1;
+
+      margin: 0 auto;
+    }
+
+    #wheelCanvas {
+      display: block;
+
+      width: 100%;
+      height: 100%;
+
+      border-radius: 50%;
+
+      filter: drop-shadow(0 18px 30px rgba(0, 0, 0, 0.45));
+    }
+
+    .pointer {
+      position: absolute;
+      z-index: 10;
+
+      top: -8px;
+      left: 50%;
+
+      width: 0;
+      height: 0;
+
+      border-left: 18px solid transparent;
+      border-right: 18px solid transparent;
+      border-top: 40px solid #ffffff;
+
+      transform: translateX(-50%);
+
+      filter:
+        drop-shadow(0 4px 2px rgba(0, 0, 0, 0.35))
+        drop-shadow(0 0 9px rgba(255, 255, 255, 0.24));
+    }
+
+    .pointer::before {
+      content: "";
+
+      position: absolute;
+
+      left: -13px;
+      top: -40px;
+
+      width: 26px;
+      height: 26px;
+
+      border: 4px solid #ffffff;
+      border-radius: 50%;
+
+      background: var(--yellow);
+
+      transform: translateY(-50%);
+    }
+
+    .controls {
+      display: grid;
+      gap: 12px;
+
+      margin-top: 25px;
+    }
+
+    .spin-button {
+      width: 100%;
+      min-height: 58px;
+      padding: 14px 18px;
+
+      border: none;
+      border-radius: 17px;
+
+      font-size: 18px;
+      font-weight: 800;
+      line-height: 1.2;
+
+      cursor: pointer;
+
+      transition:
+        transform 0.16s ease,
+        filter 0.16s ease,
+        opacity 0.16s ease,
+        box-shadow 0.16s ease;
+    }
+
+    .spin-button:hover:not(:disabled) {
+      filter: brightness(1.08);
+      transform: translateY(-2px);
+    }
+
+    .spin-button:active:not(:disabled) {
+      transform: translateY(1px) scale(0.985);
+    }
+
+    .spin-button:disabled {
+      color: rgba(255, 255, 255, 0.65);
+
+      background: linear-gradient(
+        135deg,
+        #555862,
+        #3b3d46
+      );
+
+      box-shadow: none;
+
+      cursor: not-allowed;
+      opacity: 0.75;
+      transform: none;
+    }
+
+    #freeSpinBtn {
+      color: #102018;
+
+      background: linear-gradient(
+        135deg,
+        #61e8a7,
+        var(--green)
+      );
+
+      box-shadow:
+        0 12px 28px rgba(24, 195, 126, 0.22),
+        inset 0 1px 0 rgba(255, 255, 255, 0.62);
+    }
+
+    #paidSpinBtn {
+      color: #171208;
+
+      background: linear-gradient(
+        135deg,
+        #ffe06b,
+        var(--orange)
+      );
+
+      box-shadow:
+        0 12px 28px rgba(255, 160, 0, 0.25),
+        inset 0 1px 0 rgba(255, 255, 255, 0.62);
+    }
+
+    .result {
+      min-height: 32px;
+      margin-top: 18px;
+
+      font-size: 21px;
+      font-weight: 800;
+    }
+
+    .result.success {
+      color: #ffd54f;
+      animation: resultAppear 0.46s ease-out;
+    }
+
+    .result.error {
+      color: #ff7675;
+      animation: resultAppear 0.35s ease-out;
+    }
+
+    .integration-note {
+      margin: 14px auto 0;
+      max-width: 390px;
+
+      color: rgba(255, 255, 255, 0.43);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    code {
+      color: rgba(255, 255, 255, 0.68);
+    }
+
+    @keyframes resultAppear {
+      0% {
+        opacity: 0;
+        transform: scale(0.82);
+      }
+
+      70% {
+        transform: scale(1.07);
+      }
+
+      100% {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
+
+    @media (max-width: 480px) {
+      body {
+        padding: 10px;
+      }
+
+      .wheel-app {
+        padding: 21px 12px;
+        border-radius: 22px;
+      }
+
+      .balance-card {
+        min-width: 200px;
+        margin-bottom: 18px;
+      }
+
+      .pointer {
+        border-left-width: 15px;
+        border-right-width: 15px;
+        border-top-width: 34px;
+      }
+
+      .spin-button {
+        min-height: 56px;
+        font-size: 17px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="wheel-app">
+    <h1>Колесо Фортуны</h1>
+
+    <p class="subtitle">
+      Крути колесо и выигрывай звезды!
+    </p>
+
+    <div class="balance-card">
+      <span>Ваш баланс:</span>
+
+      <span class="balance-value">
+        <span id="balanceValue">0</span> 🌟
+      </span>
+    </div>
+
+    <div class="wheel-container">
+      <canvas
+        id="wheelCanvas"
+        width="800"
+        height="800"
+        aria-label="Колесо Фортуны"
+      ></canvas>
+
+      <div class="pointer" aria-hidden="true"></div>
+    </div>
+
+    <div class="controls">
+      <button
+        id="freeSpinBtn"
+        class="spin-button"
+        type="button"
+      >
+        Бесплатный прокрут
+      </button>
+
+      <button
+        id="paidSpinBtn"
+        class="spin-button"
+        type="button"
+      >
+        Крутить за 3 🌟
+      </button>
+    </div>
+
+    <div
+      id="result"
+      class="result"
+      aria-live="polite"
+    ></div>
+
+    <div class="integration-note">
+      Для запуска колеса с результатом от Python-бота:
+      <code>spin(0)</code> — <code>spin(7)</code>.
+    </div>
+  </main>
+
+  <script>
+    "use strict";
+
+    /*
+    ============================================================
+    ОСНОВНЫЕ НАСТРОЙКИ
+    ============================================================
+    */
+
+    const FREE_SPIN_COOLDOWN = 24 * 60 * 60 * 1000;
+    const PAID_SPIN_PRICE = 3;
+
+    /*
+      Демонстрационный начальный баланс.
+
+      В реальном Telegram WebApp баланс необходимо получать
+      с сервера, а не доверять значению из localStorage.
+    */
+    const DEFAULT_BALANCE = 20;
+
+    const STORAGE_KEYS = {
+      balance: "fortuneWheelBalance",
+      lastFreeSpin: "fortuneWheelLastFreeSpin"
+    };
+
+    const sectors = [
+      0.1,
+      0.5,
+      1,
+      2,
+      5,
+      10,
+      25,
+      100
+    ];
+
+    const sectorColors = [
+      "#FF5A5F",
+      "#6C5CE7",
+      "#00B894",
+      "#FFB800",
+      "#0984E3",
+      "#E84393",
+      "#F97316",
+      "#16A085"
+    ];
+
+    const textColors = [
+      "#FFFFFF",
+      "#FFFFFF",
+      "#FFFFFF",
+      "#172033",
+      "#FFFFFF",
+      "#FFFFFF",
+      "#FFFFFF",
+      "#FFFFFF"
+    ];
+
+    /*
+    ============================================================
+    DOM-ЭЛЕМЕНТЫ
+    ============================================================
+    */
+
+    const canvas = document.getElementById("wheelCanvas");
+    const ctx = canvas.getContext("2d");
+
+    const freeSpinButton =
+      document.getElementById("freeSpinBtn");
+
+    const paidSpinButton =
+      document.getElementById("paidSpinBtn");
+
+    const balanceValueElement =
+      document.getElementById("balanceValue");
+
+    const resultElement =
+      document.getElementById("result");
+
+    /*
+    ============================================================
+    СОСТОЯНИЕ
+    ============================================================
+    */
+
+    const sectorCount = sectors.length;
+    const fullCircle = Math.PI * 2;
+    const sectorAngle = fullCircle / sectorCount;
+    const pointerAngle = -Math.PI / 2;
+
+    let currentAngle = 0;
+    let isSpinning = false;
+    let countdownIntervalId = null;
+
+    let userBalance = loadBalance();
+
+    /*
+    ============================================================
+    РАБОТА С БАЛАНСОМ
+    ============================================================
+    */
+
+    function loadBalance() {
+      const savedBalance = localStorage.getItem(
+        STORAGE_KEYS.balance
+      );
+
+      if (savedBalance === null) {
+        localStorage.setItem(
+          STORAGE_KEYS.balance,
+          String(DEFAULT_BALANCE)
+        );
+
+        return DEFAULT_BALANCE;
+      }
+
+      const parsedBalance = Number(savedBalance);
+
+      if (!Number.isFinite(parsedBalance)) {
+        return DEFAULT_BALANCE;
+      }
+
+      return parsedBalance;
+    }
+
+    function saveBalance() {
+      localStorage.setItem(
+        STORAGE_KEYS.balance,
+        String(userBalance)
+      );
+    }
+
+    function updateBalanceDisplay() {
+      balanceValueElement.textContent =
+        formatBalance(userBalance);
+
+      updatePaidSpinButton();
+    }
+
+    function formatBalance(value) {
+      return Number.isInteger(value)
+        ? String(value)
+        : value.toFixed(1);
+    }
+
+    /**
+     * Заглушка для интеграции с сервером или Telegram WebApp.
+     *
+     * В реальном проекте функция должна отправить запрос
+     * на сервер и списать звезды там.
+     *
+     * @param {number} amount Сумма списания.
+     * @returns {Promise<boolean>}
+     */
+    async function deductBalance(amount) {
+      if (
+        !Number.isFinite(amount) ||
+        amount <= 0
+      ) {
+        return false;
+      }
+
+      if (userBalance < amount) {
+        return false;
+      }
+
+      userBalance -= amount;
+
+      saveBalance();
+      updateBalanceDisplay();
+
+      return true;
+    }
+
+    /**
+     * Заглушка для начисления выигрыша.
+     *
+     * В реальном проекте начисление должно происходить
+     * на сервере после проверки результата прокрута.
+     *
+     * @param {number} amount Сумма выигрыша.
+     * @returns {Promise<number>}
+     */
+    async function addWinning(amount) {
+      if (
+        !Number.isFinite(amount) ||
+        amount < 0
+      ) {
+        throw new Error("Некорректная сумма выигрыша.");
+      }
+
+      userBalance += amount;
+
+      /*
+        Убираем возможные ошибки дробных вычислений JS.
+      */
+      userBalance = Math.round(userBalance * 10) / 10;
+
+      saveBalance();
+      updateBalanceDisplay();
+
+      return userBalance;
+    }
+
+    /*
+    ============================================================
+    БЕСПЛАТНЫЙ ПРОКРУТ И ТАЙМЕР
+    ============================================================
+    */
+
+    function getLastFreeSpinTimestamp() {
+      const savedTimestamp = localStorage.getItem(
+        STORAGE_KEYS.lastFreeSpin
+      );
+
+      if (!savedTimestamp) {
+        return null;
+      }
+
+      const parsedTimestamp = Number(savedTimestamp);
+
+      return Number.isFinite(parsedTimestamp)
+        ? parsedTimestamp
+        : null;
+    }
+
+    function saveFreeSpinTimestamp(timestamp) {
+      localStorage.setItem(
+        STORAGE_KEYS.lastFreeSpin,
+        String(timestamp)
+      );
+    }
+
+    /**
+     * Проверяет, доступен ли бесплатный прокрут.
+     *
+     * Заглушку можно заменить запросом на сервер.
+     *
+     * @returns {{
+     *   available: boolean,
+     *   remainingTime: number
+     * }}
+     */
+    function checkFreeSpinAvailability() {
+      const lastFreeSpin = getLastFreeSpinTimestamp();
+
+      if (lastFreeSpin === null) {
+        return {
+          available: true,
+          remainingTime: 0
+        };
+      }
+
+      const elapsedTime = Date.now() - lastFreeSpin;
+      const remainingTime =
+        FREE_SPIN_COOLDOWN - elapsedTime;
+
+      return {
+        available: remainingTime <= 0,
+        remainingTime: Math.max(0, remainingTime)
+      };
+    }
+
+    function formatCountdown(milliseconds) {
+      const totalSeconds = Math.max(
+        0,
+        Math.ceil(milliseconds / 1000)
+      );
+
+      const hours = Math.floor(totalSeconds / 3600);
+
+      const minutes = Math.floor(
+        (totalSeconds % 3600) / 60
+      );
+
+      const seconds = totalSeconds % 60;
+
+      return [
+        String(hours).padStart(2, "0"),
+        String(minutes).padStart(2, "0"),
+        String(seconds).padStart(2, "0")
+      ].join(":");
+    }
+
+    function updateFreeSpinButton() {
+      const availability =
+        checkFreeSpinAvailability();
+
+      if (isSpinning) {
+        freeSpinButton.disabled = true;
+        freeSpinButton.textContent = "Колесо крутится…";
+        return;
+      }
+
+      if (availability.available) {
+        freeSpinButton.disabled = false;
+        freeSpinButton.textContent =
+          "Бесплатный прокрут";
+
+        return;
+      }
+
+      freeSpinButton.disabled = true;
+
+      freeSpinButton.textContent =
+        `Бесплатно через ${
+          formatCountdown(
+            availability.remainingTime
+          )
+        }`;
+    }
+
+    function startFreeSpinCountdown() {
+      if (countdownIntervalId !== null) {
+        clearInterval(countdownIntervalId);
+      }
+
+      updateFreeSpinButton();
+
+      countdownIntervalId = setInterval(() => {
+        updateFreeSpinButton();
+
+        const availability =
+          checkFreeSpinAvailability();
+
+        if (availability.available) {
+          clearInterval(countdownIntervalId);
+          countdownIntervalId = null;
+        }
+      }, 1000);
+    }
+
+    /*
+    ============================================================
+    СОСТОЯНИЕ КНОПКИ ПЛАТНОГО ПРОКРУТА
+    ============================================================
+    */
+
+    function updatePaidSpinButton() {
+      if (isSpinning) {
+        paidSpinButton.disabled = true;
+        paidSpinButton.textContent = "Колесо крутится…";
+        return;
+      }
+
+      if (userBalance < PAID_SPIN_PRICE) {
+        paidSpinButton.disabled = true;
+        paidSpinButton.textContent =
+          "Недостаточно звезд";
+
+        return;
+      }
+
+      paidSpinButton.disabled = false;
+      paidSpinButton.textContent =
+        `Крутить за ${PAID_SPIN_PRICE} 🌟`;
+    }
+
+    function updateControls() {
+      updateFreeSpinButton();
+      updatePaidSpinButton();
+    }
+
+    /*
+    ============================================================
+    МАЛЕВАНИЕ КОЛЕСА
+    ============================================================
+    */
+
+    function normalizeAngle(angle) {
+      return (
+        (angle % fullCircle) + fullCircle
+      ) % fullCircle;
+    }
+
+    function formatSectorValue(value) {
+      if (value === 0.1 || value === 0.5) {
+        return value.toFixed(1);
+      }
+
+      return String(value);
+    }
+
+    function prepareCanvas() {
+      const rect = canvas.getBoundingClientRect();
+      const pixelRatio =
+        window.devicePixelRatio || 1;
+
+      const displaySize = Math.min(
+        rect.width,
+        rect.height
+      );
+
+      const requiredWidth = Math.round(
+        displaySize * pixelRatio
+      );
+
+      const requiredHeight = Math.round(
+        displaySize * pixelRatio
+      );
+
+      if (
+        canvas.width !== requiredWidth ||
+        canvas.height !== requiredHeight
+      ) {
+        canvas.width = requiredWidth;
+        canvas.height = requiredHeight;
+      }
+
+      ctx.setTransform(
+        pixelRatio,
+        0,
+        0,
+        pixelRatio,
+        0,
+        0
+      );
+
+      return {
+        width: displaySize,
+        height: displaySize
+      };
+    }
+
+    function drawWheel(angle) {
+      const { width, height } = prepareCanvas();
+
+      const centerX = width / 2;
+      const centerY = height / 2;
+
+      const outerRadius =
+        Math.min(width, height) * 0.47;
+
+      const innerRadius = outerRadius * 0.16;
+
+      ctx.clearRect(0, 0, width, height);
+
+      ctx.save();
+
+      ctx.translate(centerX, centerY);
+      ctx.rotate(angle);
+
+      sectors.forEach((value, index) => {
+        const startAngle =
+          pointerAngle -
+          sectorAngle / 2 +
+          index * sectorAngle;
+
+        const endAngle =
+          startAngle + sectorAngle;
+
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+
+        ctx.arc(
+          0,
+          0,
+          outerRadius,
+          startAngle,
+          endAngle
+        );
+
+        ctx.closePath();
+
+        ctx.fillStyle = sectorColors[index];
+        ctx.fill();
+
+        ctx.strokeStyle =
+          "rgba(255, 255, 255, 0.82)";
+
+        ctx.lineWidth = Math.max(
+          2,
+          width * 0.006
+        );
+
+        ctx.stroke();
+
+        const middleAngle =
+          startAngle + sectorAngle / 2;
+
+        ctx.save();
+        ctx.rotate(middleAngle);
+
+        const fontSize = Math.max(
+          15,
+          Math.min(25, width * 0.052)
+        );
+
+        ctx.font =
+          `800 ${fontSize}px Arial, Helvetica, sans-serif`;
+
+        ctx.fillStyle = textColors[index];
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+
+        ctx.shadowColor =
+          "rgba(0, 0, 0, 0.28)";
+
+        ctx.shadowBlur = 3;
+        ctx.shadowOffsetX = 1;
+        ctx.shadowOffsetY = 1;
+
+        const textRadius =
+          outerRadius * 0.67;
+
+        ctx.fillText(
+          `${formatSectorValue(value)} ★`,
+          textRadius,
+          0
+        );
+
+        ctx.restore();
+      });
+
+      ctx.beginPath();
+
+      ctx.arc(
+        0,
+        0,
+        outerRadius,
+        0,
+        fullCircle
+      );
+
+      ctx.strokeStyle = "#ffffff";
+
+      ctx.lineWidth = Math.max(
+        5,
+        width * 0.014
+      );
+
+      ctx.stroke();
+
+      ctx.beginPath();
+
+      ctx.arc(
+        0,
+        0,
+        outerRadius * 0.91,
+        0,
+        fullCircle
+      );
+
+      ctx.strokeStyle =
+        "rgba(255, 255, 255, 0.28)";
+
+      ctx.lineWidth = Math.max(
+        2,
+        width * 0.005
+      );
+
+      ctx.stroke();
+
+      ctx.restore();
+
+      const centerGradient =
+        ctx.createRadialGradient(
+          centerX - innerRadius * 0.3,
+          centerY - innerRadius * 0.3,
+          innerRadius * 0.1,
+          centerX,
+          centerY,
+          innerRadius
+        );
+
+      centerGradient.addColorStop(
+        0,
+        "#fff5b8"
+      );
+
+      centerGradient.addColorStop(
+        0.45,
+        "#ffd233"
+      );
+
+      centerGradient.addColorStop(
+        1,
+        "#f28c00"
+      );
+
+      ctx.beginPath();
+
+      ctx.arc(
+        centerX,
+        centerY,
+        innerRadius,
+        0,
+        fullCircle
+      );
+
+      ctx.fillStyle = centerGradient;
+      ctx.fill();
+
+      ctx.strokeStyle = "#ffffff";
+
+      ctx.lineWidth = Math.max(
+        4,
+        width * 0.01
+      );
+
+      ctx.stroke();
+
+      drawStar(
+        centerX,
+        centerY,
+        5,
+        innerRadius * 0.45,
+        innerRadius * 0.2
+      );
+    }
+
+    function drawStar(
+      centerX,
+      centerY,
+      points,
+      outerRadius,
+      innerRadius
+    ) {
+      let rotation = -Math.PI / 2;
+      const step = Math.PI / points;
+
+      ctx.beginPath();
+
+      for (
+        let index = 0;
+        index < points * 2;
+        index++
+      ) {
+        const radius =
+          index % 2 === 0
+            ? outerRadius
+            : innerRadius;
+
+        const x =
+          centerX +
+          Math.cos(rotation) * radius;
+
+        const y =
+          centerY +
+          Math.sin(rotation) * radius;
+
+        if (index === 0) {
+          ctx.moveTo(x, y);
+        } else {
+          ctx.lineTo(x, y);
+        }
+
+        rotation += step;
+      }
+
+      ctx.closePath();
+
+      ctx.fillStyle = "#ffffff";
+      ctx.fill();
+    }
+
+    /*
+    ============================================================
+    АНИМАЦИЯ
+    ============================================================
+    */
+
+    function easeOutQuint(progress) {
+      return 1 - Math.pow(1 - progress, 5);
+    }
+
+    function calculateTargetAngle(
+      targetSectorIndex
+    ) {
+      return normalizeAngle(
+        -targetSectorIndex * sectorAngle
+      );
+    }
+
+    /**
+     * Запускает колесо на конкретный сектор.
+     *
+     * В реальном приложении targetSectorIndex должен
+     * приходить с сервера.
+     *
+     * @param {number} targetSectorIndex Индекс от 0 до 7.
+     * @returns {Promise<number>}
+     */
+    function spin(targetSectorIndex) {
+      return new Promise((resolve, reject) => {
+        if (isSpinning) {
+          reject(
+            new Error(
+              "Колесо уже вращается."
+            )
+          );
+
+          return;
+        }
+
+        if (
+          !Number.isInteger(targetSectorIndex) ||
+          targetSectorIndex < 0 ||
+          targetSectorIndex >= sectorCount
+        ) {
+          reject(
+            new Error(
+              `Индекс сектора должен быть от 0 до ${
+                sectorCount - 1
+              }.`
+            )
+          );
+
+          return;
+        }
+
+        isSpinning = true;
+        updateControls();
+        clearResult();
+
+        const normalizedCurrentAngle =
+          normalizeAngle(currentAngle);
+
+        const targetNormalizedAngle =
+          calculateTargetAngle(
+            targetSectorIndex
+          );
+
+        let angleDifference =
+          targetNormalizedAngle -
+          normalizedCurrentAngle;
+
+        if (angleDifference < 0) {
+          angleDifference += fullCircle;
+        }
+
+        const fullRotations =
+          5 + Math.floor(Math.random() * 3);
+
+        const startAngle = currentAngle;
+
+        const finalAngle =
+          currentAngle +
+          fullRotations * fullCircle +
+          angleDifference;
+
+        const duration = 4800;
+        const startTime = performance.now();
+
+        function animate(timestamp) {
+          const elapsed =
+            timestamp - startTime;
+
+          const progress = Math.min(
+            elapsed / duration,
+            1
+          );
+
+          const easedProgress =
+            easeOutQuint(progress);
+
+          currentAngle =
+            startAngle +
+            (finalAngle - startAngle) *
+              easedProgress;
+
+          drawWheel(currentAngle);
+
+          if (progress < 1) {
+            requestAnimationFrame(animate);
+            return;
+          }
+
+          currentAngle =
+            targetNormalizedAngle;
+
+          drawWheel(currentAngle);
+
+          isSpinning = false;
+          updateControls();
+
+          const prize =
+            sectors[targetSectorIndex];
+
+          showResult(
+            `Выигрыш: ${
+              formatSectorValue(prize)
+            } 🌟`,
+            "success"
+          );
+
+          window.dispatchEvent(
+            new CustomEvent(
+              "wheelSpinFinished",
+              {
+                detail: {
+                  sectorIndex:
+                    targetSectorIndex,
+
+                  value: prize
+                }
+              }
+            )
+          );
+
+          resolve(prize);
+        }
+
+        requestAnimationFrame(animate);
+      });
+    }
+
+    /*
+    ============================================================
+    РЕЗУЛЬТАТ
+    ============================================================
+    */
+
+    function clearResult() {
+      resultElement.textContent = "";
+
+      resultElement.classList.remove(
+        "success",
+        "error"
+      );
+    }
+
+    function showResult(message, type) {
+      resultElement.textContent = message;
+
+      resultElement.classList.remove(
+        "success",
+        "error"
+      );
+
+      void resultElement.offsetWidth;
+
+      resultElement.classList.add(type);
+    }
+
+    /*
+    ============================================================
+    ПОЛУЧЕНИЕ РЕЗУЛЬТАТА СЕКТОРА
+    ============================================================
+    */
+
+    /**
+     * Демонстрационная функция.
+     *
+     * В реальном проекте вместо Math.random()
+     * необходимо отправить запрос Python-боту или API.
+     */
+    async function getTargetSectorFromServer(
+      spinType
+    ) {
+      console.log(
+        "Тип прокрута:",
+        spinType
+      );
+
+      return Math.floor(
+        Math.random() * sectorCount
+      );
+    }
+
+    /*
+    ============================================================
+    БЕСПЛАТНЫЙ ПРОКРУТ
+    ============================================================
+    */
+
+    freeSpinButton.addEventListener(
+      "click",
+      async () => {
+        if (isSpinning) {
+          return;
+        }
+
+        const availability =
+          checkFreeSpinAvailability();
+
+        if (!availability.available) {
+          updateFreeSpinButton();
+          return;
+        }
+
+        /*
+          Время сохраняется сразу после подтверждения
+          доступности прокрута.
+
+          В реальном проекте timestamp должен фиксироваться
+          на сервере, чтобы пользователь не мог обойти
+          ограничение очисткой localStorage.
+        */
+        saveFreeSpinTimestamp(Date.now());
+        startFreeSpinCountdown();
+
+        try {
+          const targetSectorIndex =
+            await getTargetSectorFromServer(
+              "free"
+            );
+
+          const prize = await spin(
+            targetSectorIndex
+          );
+
+          await addWinning(prize);
+        } catch (error) {
+          console.error(error);
+
+          showResult(
+            "Не удалось запустить колесо.",
+            "error"
+          );
+        }
+      }
+    );
+
+    /*
+    ============================================================
+    ПЛАТНЫЙ ПРОКРУТ
+    ============================================================
+    */
+
+    paidSpinButton.addEventListener(
+      "click",
+      async () => {
+        if (isSpinning) {
+          return;
+        }
+
+        if (
+          userBalance < PAID_SPIN_PRICE
+        ) {
+          showResult(
+            "Недостаточно звезд на балансе.",
+            "error"
+          );
+
+          updatePaidSpinButton();
+          return;
+        }
+
+        /*
+          Сначала списываем стоимость прокрута.
+
+          В реальном проекте сервер должен одной операцией:
+          1. проверить баланс;
+          2. списать стоимость;
+          3. определить выигрыш;
+          4. вернуть результат.
+        */
+        const deducted =
+          await deductBalance(
+            PAID_SPIN_PRICE
+          );
+
+        if (!deducted) {
+          showResult(
+            "Не удалось списать звезды.",
+            "error"
+          );
+
+          return;
+        }
+
+        try {
+          const targetSectorIndex =
+            await getTargetSectorFromServer(
+              "paid"
+            );
+
+          const prize = await spin(
+            targetSectorIndex
+          );
+
+          await addWinning(prize);
+        } catch (error) {
+          console.error(error);
+
+          /*
+            Для демонстрации возвращаем стоимость
+            при технической ошибке.
+
+            На сервере возврат должен обрабатываться
+            отдельной защищенной транзакцией.
+          */
+          await addWinning(
+            PAID_SPIN_PRICE
+          );
+
+          showResult(
+            "Ошибка прокрута. Стоимость возвращена.",
+            "error"
+          );
+        }
+      }
+    );
+
+    /*
+    ============================================================
+    СОБЫТИЕ ЗАВЕРШЕНИЯ ПРОКРУТА
+    ============================================================
+    */
+
+    window.addEventListener(
+      "wheelSpinFinished",
+      event => {
+        console.log(
+          "Прокрут завершен:",
+          event.detail
+        );
+      }
+    );
+
+    /*
+    ============================================================
+    TELEGRAM WEBAPP
+    ============================================================
+    */
+
+    function initializeTelegramWebApp() {
+      if (
+        !window.Telegram ||
+        !window.Telegram.WebApp
+      ) {
+        return;
+      }
+
+      const telegramWebApp =
+        window.Telegram.WebApp;
+
+      telegramWebApp.ready();
+      telegramWebApp.expand();
+
+      console.log(
+        "Telegram WebApp запущен.",
+        telegramWebApp.initDataUnsafe
+      );
+    }
+
+    /*
+      Делаем основные функции глобальными,
+      чтобы их можно было вызывать извне.
+    */
+    window.spin = spin;
+
+    window.checkFreeSpinAvailability =
+      checkFreeSpinAvailability;
+
+    window.deductBalance =
+      deductBalance;
+
+    window.addWinning =
+      addWinning;
+
+    /*
+    ============================================================
+    ИНИЦИАЛИЗАЦИЯ
+    ============================================================
+    */
+
+    window.addEventListener(
+      "resize",
+      () => {
+        drawWheel(currentAngle);
+      }
+    );
+
+    initializeTelegramWebApp();
+    updateBalanceDisplay();
+    startFreeSpinCountdown();
+    drawWheel(currentAngle);
+  </script>
+</body>
+</html>
