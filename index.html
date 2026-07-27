@@ -281,6 +281,110 @@
       animation: resultAppear 0.35s ease-out;
     }
 
+    .close-button {
+      width: 100%;
+      min-height: 48px;
+      margin-top: 12px;
+      padding: 12px 16px;
+      color: rgba(255, 255, 255, 0.86);
+      font-size: 16px;
+      font-weight: 800;
+      background: rgba(255, 255, 255, 0.09);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 15px;
+      cursor: pointer;
+    }
+
+    .win-overlay {
+      position: fixed;
+      z-index: 50;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 22px;
+      background: rgba(0, 0, 0, 0.42);
+      opacity: 1;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
+
+    .win-overlay.hidden {
+      opacity: 0;
+    }
+
+    .win-card {
+      position: relative;
+      overflow: hidden;
+      width: min(100%, 360px);
+      padding: 26px 18px 24px;
+      text-align: center;
+      background:
+        radial-gradient(circle at top, rgba(255, 213, 79, 0.28), transparent 52%),
+        rgba(20, 22, 31, 0.96);
+      border: 1px solid rgba(255, 213, 79, 0.28);
+      border-radius: 24px;
+      box-shadow:
+        0 24px 80px rgba(0, 0, 0, 0.58),
+        0 0 42px rgba(255, 202, 40, 0.2);
+      animation: winCardIn 0.35s ease-out;
+    }
+
+    .win-card.wow {
+      animation:
+        winCardIn 0.35s ease-out,
+        wowPulse 1.2s ease-in-out infinite;
+    }
+
+    .win-card.mega {
+      border-color: rgba(255, 255, 255, 0.62);
+      background:
+        radial-gradient(circle at 50% 0%, rgba(255, 255, 255, 0.34), transparent 42%),
+        radial-gradient(circle at 50% 100%, rgba(255, 64, 129, 0.28), transparent 46%),
+        rgba(20, 22, 31, 0.98);
+      box-shadow:
+        0 24px 90px rgba(0, 0, 0, 0.66),
+        0 0 64px rgba(255, 202, 40, 0.58),
+        0 0 96px rgba(255, 64, 129, 0.28);
+      animation:
+        winCardIn 0.35s ease-out,
+        megaPulse 0.85s ease-in-out infinite;
+    }
+
+    .win-title {
+      margin-bottom: 8px;
+      font-size: 21px;
+      font-weight: 900;
+    }
+
+    .win-prize {
+      color: #ffd54f;
+      font-size: 42px;
+      font-weight: 950;
+      line-height: 1.05;
+      text-shadow: 0 0 24px rgba(255, 213, 79, 0.42);
+    }
+
+    .win-card.mega .win-prize {
+      color: #ffffff;
+      font-size: 52px;
+      text-shadow:
+        0 0 22px rgba(255, 255, 255, 0.75),
+        0 0 42px rgba(255, 202, 40, 0.72);
+    }
+
+    .confetti-piece {
+      position: fixed;
+      z-index: 60;
+      top: -18px;
+      width: 8px;
+      height: 14px;
+      border-radius: 3px;
+      opacity: 0.95;
+      pointer-events: none;
+      animation: confettiFall 1.45s linear forwards;
+    }
+
     .integration-note {
       margin: 14px auto 0;
       max-width: 390px;
@@ -307,6 +411,47 @@
       100% {
         opacity: 1;
         transform: scale(1);
+      }
+    }
+
+    @keyframes winCardIn {
+      0% {
+        opacity: 0;
+        transform: translateY(18px) scale(0.82);
+      }
+
+      72% {
+        transform: translateY(-3px) scale(1.05);
+      }
+
+      100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    @keyframes wowPulse {
+      50% {
+        box-shadow:
+          0 24px 80px rgba(0, 0, 0, 0.58),
+          0 0 58px rgba(255, 202, 40, 0.38);
+      }
+    }
+
+    @keyframes megaPulse {
+      50% {
+        transform: scale(1.035);
+        box-shadow:
+          0 24px 90px rgba(0, 0, 0, 0.66),
+          0 0 86px rgba(255, 202, 40, 0.78),
+          0 0 120px rgba(255, 64, 129, 0.38);
+      }
+    }
+
+    @keyframes confettiFall {
+      to {
+        transform: translate3d(var(--confetti-x), 105vh, 0) rotate(760deg);
+        opacity: 0;
       }
     }
 
@@ -390,11 +535,31 @@
       aria-live="polite"
     ></div>
 
+    <button
+      id="closeWebAppBtn"
+      class="close-button"
+      type="button"
+    >
+      Закрыть
+    </button>
+
     <div class="integration-note">
       Для запуска колеса с результатом от Python-бота:
       <code>spin(0)</code> — <code>spin(7)</code>.
     </div>
   </main>
+
+  <div
+    id="winOverlay"
+    class="win-overlay hidden"
+    aria-live="polite"
+    aria-hidden="true"
+  >
+    <div id="winCard" class="win-card">
+      <div id="winTitle" class="win-title"></div>
+      <div id="winPrize" class="win-prize"></div>
+    </div>
+  </div>
 
   <script>
     "use strict";
@@ -475,6 +640,21 @@
     const resultElement =
       document.getElementById("result");
 
+    const closeWebAppButton =
+      document.getElementById("closeWebAppBtn");
+
+    const winOverlay =
+      document.getElementById("winOverlay");
+
+    const winCard =
+      document.getElementById("winCard");
+
+    const winTitle =
+      document.getElementById("winTitle");
+
+    const winPrize =
+      document.getElementById("winPrize");
+
     /*
     ============================================================
     СОСТОЯНИЕ
@@ -492,6 +672,148 @@
     let countdownIntervalId = null;
 
     let userBalance = loadBalance();
+    let audioContext = null;
+    let winOverlayTimerId = null;
+
+    function getAudioContext() {
+      if (!audioContext) {
+        const AudioContextClass =
+          window.AudioContext ||
+          window.webkitAudioContext;
+
+        if (!AudioContextClass) {
+          return null;
+        }
+
+        audioContext = new AudioContextClass();
+      }
+
+      if (audioContext.state === "suspended") {
+        audioContext.resume().catch(() => {});
+      }
+
+      return audioContext;
+    }
+
+    function playTone(
+      frequency,
+      duration,
+      delay = 0,
+      type = "sine",
+      volume = 0.08
+    ) {
+      const context = getAudioContext();
+
+      if (!context) {
+        return;
+      }
+
+      const oscillator = context.createOscillator();
+      const gain = context.createGain();
+      const startTime = context.currentTime + delay;
+      const endTime = startTime + duration;
+
+      oscillator.type = type;
+      oscillator.frequency.setValueAtTime(frequency, startTime);
+      gain.gain.setValueAtTime(0.001, startTime);
+      gain.gain.exponentialRampToValueAtTime(volume, startTime + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, endTime);
+
+      oscillator.connect(gain);
+      gain.connect(context.destination);
+      oscillator.start(startTime);
+      oscillator.stop(endTime + 0.03);
+    }
+
+    function playSpinSound() {
+      playTone(220, 0.08, 0, "triangle", 0.045);
+      playTone(294, 0.08, 0.08, "triangle", 0.045);
+      playTone(370, 0.08, 0.16, "triangle", 0.045);
+    }
+
+    function playWinSound(value) {
+      if (value >= 100) {
+        playTone(523, 0.16, 0, "triangle", 0.08);
+        playTone(659, 0.16, 0.12, "triangle", 0.09);
+        playTone(784, 0.2, 0.24, "triangle", 0.1);
+        playTone(1046, 0.28, 0.42, "triangle", 0.12);
+        return;
+      }
+
+      if (value >= 5) {
+        playTone(392, 0.12, 0, "triangle", 0.07);
+        playTone(523, 0.14, 0.12, "triangle", 0.08);
+        playTone(659, 0.18, 0.26, "triangle", 0.09);
+        return;
+      }
+
+      playTone(440, 0.12, 0, "sine", 0.055);
+      playTone(554, 0.14, 0.12, "sine", 0.06);
+    }
+
+    function burstConfetti(amount) {
+      const colors = [
+        "#ffd54f",
+        "#ff7675",
+        "#74b9ff",
+        "#55efc4",
+        "#fd79a8",
+        "#ffffff"
+      ];
+
+      for (let index = 0; index < amount; index++) {
+        const piece = document.createElement("span");
+        const startLeft = Math.random() * 100;
+        const drift = (Math.random() * 220 - 110).toFixed(0);
+
+        piece.className = "confetti-piece";
+        piece.style.left = `${startLeft}vw`;
+        piece.style.background = colors[index % colors.length];
+        piece.style.animationDelay = `${Math.random() * 0.18}s`;
+        piece.style.setProperty("--confetti-x", `${drift}px`);
+
+        document.body.appendChild(piece);
+
+        setTimeout(() => {
+          piece.remove();
+        }, 1800);
+      }
+    }
+
+    function showWinOverlay(value) {
+      const title =
+        value >= 100
+          ? "МЕГА ВЫИГРЫШ!"
+          : value >= 5
+            ? "Вау, хороший улов!"
+            : "Выигрыш";
+
+      winTitle.textContent = title;
+      winPrize.textContent = `+${formatSectorValue(value)} ⭐`;
+
+      winCard.classList.remove("wow", "mega");
+
+      if (value >= 100) {
+        winCard.classList.add("mega");
+        burstConfetti(90);
+      } else if (value >= 5) {
+        winCard.classList.add("wow");
+        burstConfetti(38);
+      }
+
+      if (winOverlayTimerId !== null) {
+        clearTimeout(winOverlayTimerId);
+      }
+
+      winOverlay.classList.remove("hidden");
+      winOverlay.setAttribute("aria-hidden", "false");
+
+      winOverlayTimerId = setTimeout(() => {
+        winOverlay.classList.add("hidden");
+        winOverlay.setAttribute("aria-hidden", "true");
+        winOverlayTimerId = null;
+      }, value >= 100 ? 3600 : 2600);
+    }
 
     /*
     ============================================================
@@ -1183,6 +1505,9 @@
             "success"
           );
 
+          showWinOverlay(prize);
+          playWinSound(prize);
+
           window.dispatchEvent(
             new CustomEvent(
               "wheelSpinFinished",
@@ -1217,6 +1542,14 @@
         "success",
         "error"
       );
+
+      if (winOverlayTimerId !== null) {
+        clearTimeout(winOverlayTimerId);
+        winOverlayTimerId = null;
+      }
+
+      winOverlay.classList.add("hidden");
+      winOverlay.setAttribute("aria-hidden", "true");
     }
 
     function showResult(message, type) {
@@ -1356,6 +1689,7 @@
         }
 
         isSpinning = true;
+        playSpinSound();
         updateControls();
         clearResult();
 
@@ -1415,6 +1749,7 @@
         }
 
         isSpinning = true;
+        playSpinSound();
         updateControls();
         clearResult();
 
@@ -1460,11 +1795,18 @@
           "Прокрут завершен:",
           event.detail
         );
-        setTimeout(() => {
-          if (window.Telegram && window.Telegram.WebApp) {
-            window.Telegram.WebApp.close();
-          }
-        }, 1500);
+      }
+    );
+
+    closeWebAppButton.addEventListener(
+      "click",
+      () => {
+        if (window.Telegram && window.Telegram.WebApp) {
+          window.Telegram.WebApp.close();
+          return;
+        }
+
+        window.close();
       }
     );
 
